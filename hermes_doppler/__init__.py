@@ -62,6 +62,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -80,10 +81,25 @@ logger = logging.getLogger(__name__)
 # Key: (configs_fingerprint,)  Value: (secrets_dict, timestamp)
 _CACHE: Dict[Tuple[str, ...], Tuple[Dict[str, str], float]] = {}
 
+_DOPPLER_INSTALL_URL = "https://docs.doppler.com/docs/cli#install"
+
 
 def _fingerprint(token: str) -> str:
     """Short fingerprint for cache key from a Doppler service token."""
     return token[:8] + "…" + token[-4:] if len(token) > 16 else token[:4]
+
+
+def _check_doppler_available() -> Optional[str]:
+    """Check if the doppler CLI is available on PATH.
+
+    Returns None if found, or an error message string if not found.
+    """
+    if shutil.which("doppler") is None:
+        return (
+            "doppler CLI not found on PATH. Install it from "
+            f"{_DOPPLER_INSTALL_URL}"
+        )
+    return None
 
 
 def _fetch_one_config(
@@ -210,6 +226,13 @@ class DopplerSource(SecretSource):
         cfg = cfg if isinstance(cfg, dict) else {}
         result = FetchResult()
 
+        # ── Pre-flight: check doppler CLI is available ──────────────
+        doppler_err = _check_doppler_available()
+        if doppler_err:
+            result.error = doppler_err
+            result.error_kind = ErrorKind.NOT_CONFIGURED
+            return result
+
         timeout = float(cfg.get("timeout_seconds", 30))
         cache_ttl = float(cfg.get("cache_ttl_seconds", 300))
 
@@ -231,7 +254,7 @@ class DopplerSource(SecretSource):
         if not root_token:
             result.error = (
                 f"env var {root_token_env} is not set — add your Doppler service "
-                f"token to /etc/hermes/ or ~/.hermes/.env as {root_token_env}=<token>"
+                f"token to ~/.hermes/.env as {root_token_env}=<token>"
             )
             result.error_kind = ErrorKind.NOT_CONFIGURED
             return result

@@ -4,7 +4,7 @@ Doppler Secrets Manager plugin for [Hermes Agent](https://github.com/NousResearc
 
 ## Why
 
-Hermes Agent's multi-profile gateway runs multiple agents (e.g. Karlin + Whitworth) in a single process. Each profile needs its own secrets (Slack tokens, API keys, etc.), but the process environment is shared. Without isolation, profile A's secrets leak to profile B via `os.environ`.
+Hermes Agent's multi-profile gateway runs multiple agents in a single process. Each profile needs its own secrets (Slack tokens, API keys, etc.), but the process environment is shared. Without isolation, profile A's secrets leak to profile B via `os.environ`.
 
 This plugin solves the problem by separating secrets into:
 
@@ -42,19 +42,19 @@ secrets:
 
     # Root — injected into os.environ (process-global)
     root:
-      project: karlin
+      project: myproject
       config: default                    # Doppler config name
-      token_env: DOPPLER_KARLIN_DEFAULT_TOKEN
-      environment: Default-Karlin        # metadata only
+      token_env: DOPPLER_TOKEN
+      environment: production            # metadata only
 
     # Profile overlays — NOT injected into os.environ
     # Available only via the profile scope mechanism
     profiles:
-      whitworth:
-        project: karlin
-        config: whitworth
-        token_env: DOPPLER_KARLIN_WHITWORTH_TOKEN
-        environment: whitworth
+      staging:
+        project: myproject
+        config: staging
+        token_env: DOPPLER_STAGING_TOKEN
+        environment: staging
         mode: merge                      # merge | overwrite
 ```
 
@@ -73,7 +73,7 @@ secrets:
   doppler:
     enabled: true
     token_env: DOPPLER_TOKEN
-    project: inleague
+    project: myproject
     config: staging
     override_existing: true
 ```
@@ -88,20 +88,19 @@ secrets:
 
 ## Token Setup
 
-Each Doppler config needs a service token. Store tokens in systemd EnvironmentFiles for defense in depth:
+Each Doppler config needs a service token. Add your tokens to `~/.hermes/.env`:
 
 ```bash
-# /etc/hermes/karlin-doppler.env (root:hermes, 0600)
-DOPPLER_KARLIN_DEFAULT_TOKEN=dp.st.xxxx
-DOPPLER_KARLIN_WHITWORTH_TOKEN=dp.st.yyyy
+# ~/.hermes/.env
+DOPPLER_TOKEN=dp.st.xxxx
+DOPPLER_STAGING_TOKEN=dp.st.yyyy
 ```
 
-Wire into systemd:
+Hermes loads `.env` before running secret sources, so the tokens are available when the plugin fetches from Doppler.
 
-```ini
-[Service]
-EnvironmentFile=/etc/hermes/karlin-doppler.env
-```
+### Security Note
+
+For stronger isolation, Doppler service tokens could be stored in root-owned files (e.g. `/etc/hermes/doppler-tokens.env` with `chmod 0600`) and loaded via systemd `EnvironmentFile=`. However, Hermes regenerates the gateway's systemd unit on restart (`generate_systemd_unit()`), which overwrites any custom `EnvironmentFile=` directives. Until upstream supports preserving custom environment files, tokens must live in `~/.hermes/.env`.
 
 ## License
 

@@ -38,10 +38,10 @@ Configuration (config.yaml)::
           environment: production  # metadata only
 
         profiles:
-          whitworth:
+          staging:
             project: myproject
-            config: whitworth
-            token_env: DOPPLER_WHITWORTH_TOKEN
+            config: staging
+            token_env: DOPPLER_STAGING_TOKEN
             environment: staging
             mode: merge
 

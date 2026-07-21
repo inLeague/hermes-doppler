@@ -65,7 +65,8 @@ secrets:
 | `merge` | Overlay keys added on top of root (additive override) |
 | `overwrite` | Overlay completely replaces root for this profile |
 
-### Single-Config Mode (backward-compatible)
+### Single-Config Mode
+If you don't run multiple agent profiles, you can supply a token for a single config. You can also use the multi-profile config but only specify root if you think you might add profiles later.
 
 ```yaml
 secrets:

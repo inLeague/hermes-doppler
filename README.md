@@ -53,7 +53,7 @@ secrets:
       staging:
         project: myproject
         config: staging
-        token_env: DOPPLER_STAGING_TOKEN
+        token_env: DOPPLER_PROFILENAME_TOKEN
         environment: staging
         mode: merge                      # merge | overwrite
 ```
@@ -65,7 +65,7 @@ secrets:
 | `merge` | Overlay keys added on top of root (additive override) |
 | `overwrite` | Overlay completely replaces root for this profile |
 
-### Legacy Single-Config (backward-compatible)
+### Single-Config Mode (backward-compatible)
 
 ```yaml
 secrets:
@@ -93,7 +93,7 @@ Each Doppler config needs a service token. Add your tokens to `~/.hermes/.env`:
 ```bash
 # ~/.hermes/.env
 DOPPLER_TOKEN=dp.st.xxxx
-DOPPLER_STAGING_TOKEN=dp.st.yyyy
+DOPPLER_PROFILENAME_TOKEN=dp.st.yyyy
 ```
 
 Hermes loads `.env` before running secret sources, so the tokens are available when the plugin fetches from Doppler.

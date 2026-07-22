@@ -4,9 +4,9 @@
 
 ## Why
 
-Hermes Agent's multi-profile gateway runs multiple agents in a single process. Each profile needs its own secrets (Slack tokens, API keys, etc.), but the process environment is shared. Without isolation, profile A's secrets leak to profile B via `os.environ`.
+Hermes supports Bitwarden and 1Password natively. With this plugin, you can use Doppler secrets. You still need to store your doppler token in .env (though we can do better once Hermes' systemd template supports EnvironmentFile) but it's better than storing ALL your keys in .env!
 
-This plugin solves the problem by separating secrets into:
+This plugin supports system-wide and per-profile screts:
 
 - **Root config** — injected into `os.environ` (process-global, inherited by all profiles)
 - **Profile overlays** — available only via the per-profile scope mechanism, NOT injected into `os.environ`

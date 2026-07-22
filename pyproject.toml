@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-doppler"
-version = "0.2.0"
+version = "0.3.0"
 description = "Doppler Secrets Manager plugin for Hermes Agent — per-profile secret isolation for multi-profile gateway deployments"
 readme = "README.md"
 license = {text = "MIT"}
@@ -30,11 +30,11 @@ Homepage = "https://github.com/inLeague/hermes-doppler"
 Repository = "https://github.com/inLeague/hermes-doppler"
 Issues = "https://github.com/inLeague/hermes-doppler/issues"
 
-[project.entry-points."hermes.secret_sources"]
+[project.entry-points."hermes_agent.plugins"]
 doppler = "hermes_doppler:DopplerSource"
 
 [tool.setuptools.packages.find]
-include = ["hermes_doppler*"]
+include = ["hermes_doppler*", "__init__.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

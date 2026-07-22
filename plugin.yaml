@@ -1,0 +1,4 @@
+name: doppler-secrets
+version: "0.3.0"
+description: Doppler Secrets Manager plugin for Hermes Agent — per-profile secret isolation for multi-profile gateway deployments.
+author: inLeague LLC

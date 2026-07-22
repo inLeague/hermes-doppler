@@ -23,9 +23,11 @@ The CLI uses `--project` and `--config`; the environment is resolved internally 
 # As a Hermes plugin (recommended)
 hermes plugins install https://github.com/inLeague/hermes-doppler
 
-# Or manually — clone into ~/.hermes/plugins/
+# Or manually — clone into ~/.hermes/plugins/doppler_secrets
 git clone https://github.com/inLeague/hermes-doppler.git ~/.hermes/plugins/doppler_secrets
 ```
+
+**Important:** When cloning manually, the target directory MUST be named `doppler_secrets` for Hermes to discover the plugin correctly.
 
 ## Configuration
 
@@ -61,7 +63,7 @@ secrets:
 ### Profile Overlay Modes
 
 | Mode | Behavior |
-|------|----------|
+| --- | --- |
 | `merge` | Overlay keys added on top of root (additive override) |
 | `overwrite` | Overlay completely replaces root for this profile |
 

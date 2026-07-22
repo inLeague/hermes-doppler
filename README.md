@@ -1,6 +1,6 @@
 # hermes-doppler
 
-Doppler Secrets Manager plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) — per-profile secret isolation for multi-profile gateway deployments.
+[Doppler](https://doppler.com) Secrets Manager plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) — per-profile secret isolation for multi-profile gateway deployments.
 
 ## Why
 

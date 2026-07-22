@@ -105,32 +105,23 @@ Hermes loads `.env` before running secret sources, so the tokens are available w
 
 For stronger isolation, Doppler service tokens could be stored in root-owned files (e.g. `/etc/hermes/doppler-tokens.env` with `chmod 0600`) and loaded via systemd `EnvironmentFile=`. However, Hermes regenerates the gateway's systemd unit on restart (`generate_systemd_unit()`), which overwrites any custom `EnvironmentFile=` directives. Until upstream supports preserving custom environment files, tokens must live in `~/.hermes/.env`.
 
-## Known Limitations
+## Post-Install Setup
 
-### Startup warning: "secrets.sources names unknown sources"
-
-The Doppler plugin registers \*after\* `load_hermes_dotenv()` runs at gateway startup. This means the initial env load in the gateway parent process does not consult the Doppler source, producing a cosmetic warning. The source IS registered — every child process (agent sessions, cron jobs, subagents) gets Doppler secrets because the plugin is loaded by the time they run.
-
-**To suppress the warning**, create a `sitecustomize.py` that registers the Doppler source at Python startup, before any imports:
+After installing the plugin, run the setup script to register the Doppler source before the gateway starts:
 
 ```bash
-cat > "$(python3 -c 'import site; print(site.getsitepackages()[0])')/sitecustomize.py" << PYEOF
-import importlib.util
-from pathlib import Path
-try:
-    _plugin = Path.home() / ".hermes" / "plugins" / "doppler_secrets" / "__init__.py"
-    if _plugin.exists():
-        _spec = importlib.util.spec_from_file_location("doppler_secrets", str(_plugin))
-        _mod = importlib.util.module_from_spec(_spec)
-        _spec.loader.exec_module(_mod)
-        from agent.secret_sources.registry import register_source
-        register_source(_mod.DopplerSource())
-except Exception:
-    pass
-PYEOF
+python3 ~/.hermes/plugins/doppler_secrets/setup_sitecustomize.py
 ```
 
-This registers the source before `load_hermes_dotenv()` runs, eliminating the warning. The file persists across Hermes updates.
+This installs a `sitecustomize.py` into your Python venv that registers the Doppler source at process startup — before `load_hermes_dotenv()` runs. The file persists across Hermes updates and is idempotent (safe to re-run).
+
+Without this step, you will see a cosmetic warning on gateway startup ("secrets.sources names unknown sources"). The warning is harmless — all child processes get Doppler secrets — but the setup script eliminates it.
+
+## Known Limitations
+
+### Startup warning without setup_sitecustomize.py
+
+If you skip the post-install setup, the Doppler plugin registers *after* `load_hermes_dotenv()` runs at gateway startup. The initial env load in the gateway parent process does not consult the Doppler source, producing a cosmetic warning. The source IS registered — every child process (agent sessions, cron jobs, subagents) gets Doppler secrets because the plugin is loaded by the time they run.
 
 ## License
 

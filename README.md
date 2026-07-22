@@ -6,7 +6,7 @@
 
 Hermes supports Bitwarden and 1Password natively. With this plugin, you can use Doppler secrets. You still need to store your doppler token in .env (though we can do better once Hermes' systemd template supports EnvironmentFile) but it's better than storing ALL your keys in .env!
 
-This plugin supports system-wide and per-profile screts:
+This plugin supports system-wide and per-profile secrets:
 
 - **Root config** — injected into `os.environ` (process-global, inherited by all profiles)
 - **Profile overlays** — available only via the per-profile scope mechanism, NOT injected into `os.environ`

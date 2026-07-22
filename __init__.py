@@ -415,4 +415,7 @@ class DopplerSource(SecretSource):
 
 def register(ctx):
     """Register the Doppler secret source with Hermes."""
+    from agent.secret_sources.registry import get_source
+    if get_source("doppler") is not None:
+        return  # already registered by sitecustomize.py bootstrap
     ctx.register_secret_source(DopplerSource())

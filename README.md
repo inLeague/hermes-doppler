@@ -83,7 +83,7 @@ secrets:
 
 ## How It Works
 
-1. At gateway startup, the plugin fetches the root config from Doppler and injects its secrets into `os.environ`
+1. At gateway startup, the plugin fetches the root config from Doppler and injects its secrets into `os.environ` (with the startup bootstrap installed, the source is registered at interpreter startup, so this happens on the gateway's first env load)
 2. Profile overlay configs are fetched but NOT injected into `os.environ`
 3. When a profile's turn runs, `build_profile_secret_scope()` reads the profile's `.env` file and installs it as a context-local scope
 4. `get_secret()` reads from the scope (for profile turns) or `os.environ` (for the default profile)
@@ -107,28 +107,30 @@ For stronger isolation, Doppler service tokens could be stored in root-owned fil
 
 ## Post-Install and Post-Update Setup
 
-After installing the plugin, run the setup script to register the Doppler source before the gateway starts:
+After installing the plugin, run the setup script so the Doppler source is registered **before** `load_hermes_dotenv()` runs:
 
 ```bash
 python3 ~/.hermes/plugins/doppler-secrets/setup_sitecustomize.py
 ```
 
-This installs a `sitecustomize.py` into the active Python venv. It registers the Doppler source at process startup — before `load_hermes_dotenv()` runs — and is idempotent (safe to re-run).
+**PM runtime (current Hermes):** the script writes a `sitecustomize.py` into each managed store Python's `site-packages/` (`~/.hermes/tools/python-*/`). That bootstrap registers the Doppler source at interpreter startup — before the gateway's first env load and before plugin discovery — which eliminates the startup warning and also makes the source available to standalone child processes (e.g. cron workers). To import the plugin and registry, the bootstrap temporarily adds the Hermes checkout and the install's PM-selected dependency environment to `sys.path`, then restores `sys.path` exactly as it found it.
 
-The bootstrap survives ordinary gateway restarts because the existing venv is reused. **It does not survive `hermes update`: Hermes recreates the venv, which removes the generated `sitecustomize.py`. Re-run the setup command after every Hermes update, before relying on Doppler during the next gateway start.**
+**Legacy (pre-PM) hosts:** the script falls back to installing into whichever `sitecustomize.py` the running Python would import (the original behaviour).
+
+**Re-run the script after any update that recreates the Python runtime** — `hermes update`, or a PM toolchain update that re-stages `~/.hermes/tools/python-*`:
 
 ```bash
 hermes update
 python3 ~/.hermes/plugins/doppler-secrets/setup_sitecustomize.py
 ```
 
-Without this setup, you will see a cosmetic warning on gateway startup ("secrets.sources names unknown sources"). The warning is harmless — all child processes get Doppler secrets — but the setup script eliminates it. Hermes does not currently provide an executable plugin post-install or post-update repair hook.
+The script is idempotent (safe to re-run) and rewrites old bootstrap blocks cleanly.
 
 ## Known Limitations
 
 ### Startup warning without setup_sitecustomize.py
 
-If you skip the post-install setup, the Doppler plugin registers *after* `load_hermes_dotenv()` runs at gateway startup. The initial env load in the gateway parent process does not consult the Doppler source, producing a cosmetic warning. The source IS registered — every child process (agent sessions, cron jobs, subagents) gets Doppler secrets because the plugin is loaded by the time they run.
+If you skip the post-install setup, the Doppler plugin registers *after* `load_hermes_dotenv()` runs at gateway startup. The initial env load in the gateway parent process does not consult the Doppler source and logs a cosmetic warning (`secrets.sources names unknown source(s): doppler`). The source registers moments later and the boot re-applies the vault right after — nothing is lost — but run the setup script to eliminate the warning.
 
 ## License
 

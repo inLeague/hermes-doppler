@@ -485,4 +485,3 @@ def register(ctx):
     if get_source("doppler") is not None:
         return  # already registered by sitecustomize.py bootstrap
     ctx.register_secret_source(DopplerSource())
-

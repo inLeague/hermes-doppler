@@ -77,6 +77,66 @@ from agent.secret_sources.base import (
 
 logger = logging.getLogger(__name__)
 
+# ── Startup bootstrap (self-healing) ────────────────────────────────────────
+# Hermes loads .env before plugin discovery, so the source must be registered
+# at interpreter startup for the first load to see it (see bootstrap.py).
+# Historically that file was installed by hand and silently lost whenever an
+# update recreated the Python runtime; now plugin load re-installs it, so every
+# process after the first boot of a fresh runtime is warning-free.
+_BOOTSTRAP_MODULE = None
+_BOOTSTRAP_STATUS: Optional[str] = None
+_BOOTSTRAP_CHECKED = False
+
+
+def _bootstrap_module():
+    """Load ``bootstrap.py`` by path (it has no Hermes imports)."""
+    global _BOOTSTRAP_MODULE
+    if _BOOTSTRAP_MODULE is None:
+        import importlib.util
+        path = Path(__file__).resolve().with_name("bootstrap.py")
+        spec = importlib.util.spec_from_file_location("hermes_doppler_bootstrap", str(path))
+        if spec is None or spec.loader is None:
+            raise ImportError(f"bootstrap.py not found beside {__file__}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _BOOTSTRAP_MODULE = module
+    return _BOOTSTRAP_MODULE
+
+
+def _repo_root() -> Optional[Path]:
+    """The Hermes checkout whose ``agent`` package this process imported."""
+    try:
+        from agent.secret_sources import registry
+        return Path(registry.__file__).resolve().parents[2]
+    except Exception:
+        return None
+
+
+def ensure_startup_bootstrap() -> Optional[str]:
+    """Install the startup bootstrap for this interpreter. Once per process, never raises.
+
+    Returns the status (created / replaced / current / skipped:…), or None when
+    the bootstrap module is unavailable (older installs).
+    """
+    global _BOOTSTRAP_STATUS, _BOOTSTRAP_CHECKED
+    if _BOOTSTRAP_CHECKED:
+        return _BOOTSTRAP_STATUS
+    _BOOTSTRAP_CHECKED = True
+    try:
+        if os.environ.get("HERMES_DOPPLER_NO_BOOTSTRAP"):
+            _BOOTSTRAP_STATUS = "skipped:disabled-by-env"
+        else:
+            _BOOTSTRAP_STATUS = _bootstrap_module().ensure(repo_root=_repo_root())
+    except Exception as exc:  # never block plugin load on this
+        _BOOTSTRAP_STATUS = f"skipped:{type(exc).__name__}"
+    if _BOOTSTRAP_STATUS in ("created", "replaced"):
+        logger.info("Doppler: startup bootstrap %s (applies to the next process on this runtime)",
+                    _BOOTSTRAP_STATUS)
+    elif _BOOTSTRAP_STATUS and _BOOTSTRAP_STATUS.startswith("skipped"):
+        logger.debug("Doppler: startup bootstrap %s", _BOOTSTRAP_STATUS)
+    return _BOOTSTRAP_STATUS
+
+
 # In-process cache so repeated startup calls don't re-fetch.
 # Key: (configs_fingerprint,)  Value: (secrets_dict, timestamp)
 _CACHE: Dict[Tuple[str, ...], Tuple[Dict[str, str], float]] = {}
@@ -415,7 +475,14 @@ class DopplerSource(SecretSource):
 
 def register(ctx):
     """Register the Doppler secret source with Hermes."""
+    # Self-heal the startup bootstrap first: this process already missed it, but
+    # every process spawned from here on inherits the fix.
+    try:
+        ensure_startup_bootstrap()
+    except Exception:
+        pass
     from agent.secret_sources.registry import get_source
     if get_source("doppler") is not None:
         return  # already registered by sitecustomize.py bootstrap
     ctx.register_secret_source(DopplerSource())
+

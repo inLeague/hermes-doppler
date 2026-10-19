@@ -29,6 +29,8 @@ git clone https://github.com/inLeague/hermes-doppler.git ~/.hermes/plugins/doppl
 
 **Important:** When cloning manually, the target directory MUST be named `doppler_secrets` for Hermes to discover the plugin correctly.
 
+After installing, restart the gateway so the plugin loads once. That load installs the startup bootstrap (see [Post-Install and Post-Update Setup](#post-install-and-post-update-setup)) — no manual step is required after later updates.
+
 ## Configuration
 
 ### Root + Profiles (recommended for multi-profile)
@@ -117,20 +119,23 @@ python3 ~/.hermes/plugins/doppler-secrets/setup_sitecustomize.py
 
 **Legacy (pre-PM) hosts:** the script falls back to installing into whichever `sitecustomize.py` the running Python would import (the original behaviour).
 
-**Re-run the script after any update that recreates the Python runtime** — `hermes update`, or a PM toolchain update that re-stages `~/.hermes/tools/python-*`:
+**The plugin now self-heals the bootstrap.** Every time the plugin loads, `ensure_startup_bootstrap()` checks the running interpreter's `site-packages` and (re)writes the bootstrap if it is missing or stale — so a runtime recreated by `hermes update` is repaired on the first process that loads plugins, and every process after that is warning-free. The script above is therefore only needed to make the *next* boot clean (before any plugin load has happened in that runtime) or on a host that has never booted Hermes:
 
 ```bash
 hermes update
+# optional — the plugin repairs the bootstrap on its next load anyway
 python3 ~/.hermes/plugins/doppler-secrets/setup_sitecustomize.py
 ```
 
-The script is idempotent (safe to re-run) and rewrites old bootstrap blocks cleanly.
+Self-heal is limited to runtimes Hermes owns (`site-packages` under `~/.hermes`); it never touches a system Python or an unrelated venv. Set `HERMES_DOPPLER_NO_BOOTSTRAP=1` to disable it.
+
+Both paths share `bootstrap.py`, so the block text and write logic cannot drift; the setup script is idempotent and rewrites old bootstrap blocks cleanly.
 
 ## Known Limitations
 
-### Startup warning without setup_sitecustomize.py
+### Startup warning on the first boot of a fresh runtime
 
-If you skip the post-install setup, the Doppler plugin registers *after* `load_hermes_dotenv()` runs at gateway startup. The initial env load in the gateway parent process does not consult the Doppler source and logs a cosmetic warning (`secrets.sources names unknown source(s): doppler`). The source registers moments later and the boot re-applies the vault right after — nothing is lost — but run the setup script to eliminate the warning.
+`sitecustomize.py` must exist before the interpreter starts, so the very first process on a runtime that has no bootstrap (a fresh install, or the first boot after `hermes update` recreated the runtime) still logs the cosmetic `secrets.sources names unknown source(s): doppler` warning while registering the source moments later. The plugin installs the bootstrap during that boot, so the warning stops there — run the setup script if you want even that first boot clean. Nothing is lost either way: the boot re-applies the vault right after discovery.
 
 ## License
 
